@@ -1,0 +1,545 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["interactiveTransactions", "fullTextSearch", "metrics", "filteredRelationCount"]
+}
+
+generator pothos {
+  provider     = "prisma-pothos-types"
+  output       = "../src/generated/pothos-types.ts"
+  clientOutput = "./prisma"
+}
+
+generator dbml {
+  provider = "prisma-dbml-generator"
+  output   = "./dbml"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// One Tenant of the app, most likely an ESN section
+model Tenant {
+  id                      String                  @id @default(uuid()) @db.Uuid
+  createdAt               DateTime                @default(now())
+  name                    String
+  shortName               String                  @unique
+  aboutPage               String                  @default("")
+  faqPage                 String?
+  imprintPage             String                  @default("")
+  privacyPolicyPage       String                  @default("")
+  tacPage                 String?
+  organizers              EventOrganizer[]
+  eventTemplates          EventTemplate[]
+  eventTemplateCategories EventTemplateCategory[]
+  products                Product[]
+  transactions            Transaction[]
+  users                   UsersOfTenants[]
+}
+
+/// One User of the app
+model User {
+  id                  String              @id @default(uuid()) @db.Uuid
+  createdAt           DateTime            @default(now())
+  /// Id from auth0 for this user
+  authId              String              @unique
+  firstName           String
+  lastName            String
+  email               String
+  communicationEmail  String?
+  birthdate           DateTime?
+  email_verified      Boolean
+  picture             String
+  calendarToken       String              @unique @default(uuid()) @db.Uuid
+  iban                String?
+  paypal              String?
+  phone               String?
+  esnCardOverride     Boolean             @default(false)
+  university          String?
+  partyAnimals        Boolean             @default(false)
+  enrolmentStatus     EnrollmentStatus    @default(NONE)
+  eventRegistrations  EventRegistration[]
+  photos              PhotoShare[]
+  productImages       ProductImage[]
+  purchases           Purchase[]
+  receipts            Receipt[]
+  createdTransactions Transaction[]       @relation("TransactionCreator")
+  transactions        Transaction[]
+  createdEvents       TumiEvent[]
+  tenants             UsersOfTenants[]
+  bio                 String?
+  country             String?
+  homeUniversity      String?
+  instagram           String?
+  position            String?
+  studyProgram        String?
+}
+
+model StripeUserData {
+  id                     String         @id @default(uuid()) @db.Uuid
+  createdAt              DateTime       @default(now())
+  usersOfTenantsUserId   String         @db.Uuid
+  usersOfTenantsTenantId String         @db.Uuid
+  customerId             String
+  paymentMethodId        String?
+  userOfTenant           UsersOfTenants @relation(fields: [usersOfTenantsUserId, usersOfTenantsTenantId], references: [userId, tenantId])
+
+  @@unique([usersOfTenantsUserId, usersOfTenantsTenantId])
+}
+
+model ShoppingCart {
+  id                     String         @id @default(uuid()) @db.Uuid
+  createdAt              DateTime       @default(now())
+  usersOfTenantsTenantId String         @db.Uuid
+  usersOfTenantsUserId   String         @db.Uuid
+  userOfTenant           UsersOfTenants @relation(fields: [usersOfTenantsUserId, usersOfTenantsTenantId], references: [userId, tenantId])
+  items                  LineItem[]
+
+  @@unique([usersOfTenantsUserId, usersOfTenantsTenantId])
+}
+
+model StripePayment {
+  id                String        @id @default(uuid()) @db.Uuid
+  createdAt         DateTime      @default(now())
+  amount            Decimal
+  checkoutSession   String        @unique
+  /// Array of events with their timestamps
+  events            Json
+  feeAmount         Decimal?
+  netAmount         Decimal?
+  paymentIntent     String?       @unique
+  paymentMethod     String?
+  paymentMethodType String?
+  refundedAmount    Decimal?      @default(0)
+  status            String
+  shipping          Json?
+  transactions      Transaction[]
+  purchase          Purchase?
+}
+
+model Transaction {
+  id                  String               @id @default(uuid()) @db.Uuid
+  createdAt           DateTime             @default(now())
+  subject             String
+  isMembershipFee     Boolean              @default(false)
+  userId              String?              @db.Uuid
+  tenantId            String               @db.Uuid
+  comment             String?
+  creatorId           String               @db.Uuid
+  type                TransactionType
+  direction           TransactionDirection
+  status              TransactionStatus    @default(PENDING)
+  amount              Decimal
+  onSendingBalance    Boolean              @default(false)
+  onReceivingBalance  Boolean              @default(false)
+  receipts            Receipt[]
+  createdBy           User                 @relation("TransactionCreator", fields: [creatorId], references: [id])
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  user                User?                @relation(fields: [userId], references: [id])
+  eventRegistration   EventRegistration?   @relation(fields: [eventRegistrationId], references: [id])
+  eventRegistrationId String?              @db.Uuid
+  purchaseId          String?              @db.Uuid
+  purchase            Purchase?            @relation(fields: [purchaseId], references: [id])
+  stripePaymentId     String?              @db.Uuid
+  stripePayment       StripePayment?       @relation(fields: [stripePaymentId], references: [id])
+}
+
+model UsersOfTenants {
+  createdAt  DateTime         @default(now())
+  userId     String           @db.Uuid
+  tenantId   String           @db.Uuid
+  role       Role             @default(USER)
+  status     MembershipStatus @default(NONE)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
+  cart       ShoppingCart?
+  stripeData StripeUserData?
+
+  @@id([userId, tenantId])
+}
+
+model EventOrganizer {
+  id        String      @id @default(uuid()) @db.Uuid
+  createdAt DateTime    @default(now())
+  tenantId  String      @db.Uuid
+  name      String
+  text      String
+  link      String?
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  events    TumiEvent[]
+}
+
+/// Template that holds all information for an event that is needed to run it
+model EventTemplate {
+  id                          String                 @id @default(uuid()) @db.Uuid
+  createdAt                   DateTime               @default(now())
+  title                       String
+  icon                        String
+  description                 String
+  comment                     String
+  location                    String
+  duration                    Decimal
+  participantText             String
+  organizerText               String
+  finances                    Json
+  tenantId                    String                 @db.Uuid
+  categoryId                  String?                @db.Uuid
+  coordinates                 Json?
+  insuranceDescription        String                 @default("")
+  shouldBeReportedToInsurance Boolean                @default(true)
+  googlePlaceId               String?
+  googlePlaceUrl              String?
+  category                    EventTemplateCategory? @relation(fields: [categoryId], references: [id])
+  tenant                      Tenant                 @relation(fields: [tenantId], references: [id])
+  eventInstances              TumiEvent[]
+}
+
+/// Category to keep an overview of event templates
+model EventTemplateCategory {
+  id        String          @id @default(uuid()) @db.Uuid
+  createdAt DateTime        @default(now())
+  name      String
+  icon      String
+  tenantId  String          @db.Uuid
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  templates EventTemplate[]
+}
+
+/// Actual instande of an TumiEventbased on a template
+model TumiEvent {
+  id                          String                  @id @default(uuid()) @db.Uuid
+  createdAt                   DateTime                @default(now())
+  title                       String
+  icon                        String
+  start                       DateTime
+  end                         DateTime
+  description                 String
+  location                    String
+  participantText             String
+  organizerText               String
+  participantLimit            Int                     @default(0)
+  organizerLimit              Int                     @default(0)
+  publicationState            PublicationState        @default(DRAFT)
+  participantSignup           MembershipStatus[]
+  organizerSignup             MembershipStatus[]
+  eventOrganizerId            String                  @db.Uuid
+  creatorId                   String                  @db.Uuid
+  eventTemplateId             String                  @db.Uuid
+  registrationLink            String?
+  registrationMode            RegistrationMode
+  coordinates                 Json?
+  prices                      Json?
+  registrationStart           DateTime                @default(now())
+  organizerRegistrationStart  DateTime                @default(now())
+  insuranceDescription        String                  @default("")
+  shouldBeReportedToInsurance Boolean                 @default(true)
+  disableDeregistration       Boolean                 @default(false)
+  excludeFromStatistics       Boolean                 @default(false)
+  excludeFromRatings          Boolean                 @default(false)
+  googlePlaceId               String?
+  googlePlaceUrl              String?
+  createdBy                   User                    @relation(fields: [creatorId], references: [id])
+  organizer                   EventOrganizer          @relation(fields: [eventOrganizerId], references: [id])
+  eventTemplate               EventTemplate           @relation(fields: [eventTemplateId], references: [id])
+  costItems                   CostItem[]
+  registrations               EventRegistration[]
+  eventRegistrationCodes      EventRegistrationCode[]
+  submissionItems             EventSubmissionItem[]
+  photoShares                 PhotoShare[]
+}
+
+model Product {
+  id                   String                @id @default(uuid()) @db.Uuid
+  createdAt            DateTime              @default(now())
+  title                String
+  description          String
+  availability         MembershipStatus[]
+  tenantId             String                @db.Uuid
+  isESNcard            Boolean               @default(false)
+  prices               Json
+  leadImageId          String?               @db.Uuid
+  publicationState     PublicationState      @default(DRAFT)
+  needsShippingAddress Boolean               @default(false)
+  isActive             Boolean               @default(true)
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  submissionItems      EventSubmissionItem[]
+  lineItems            LineItem[]
+  images               ProductImage[]
+}
+
+model ProductImage {
+  id           String   @id @default(uuid()) @db.Uuid
+  createdAt    DateTime @default(now())
+  container    String
+  creatorId    String   @db.Uuid
+  originalBlob String
+  previewBlob  String?
+  type         String
+  productId    String   @db.Uuid
+  creator      User     @relation(fields: [creatorId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
+}
+
+model Purchase {
+  id                 String         @id @default(uuid()) @db.Uuid
+  createdAt          DateTime       @default(now())
+  status             PurchaseStatus @default(PENDING)
+  userId             String         @db.Uuid
+  paymentId          String?        @unique @db.Uuid
+  cancellationReason String?
+  payment            StripePayment? @relation(fields: [paymentId], references: [id])
+  transactions       Transaction[]
+  user               User           @relation(fields: [userId], references: [id])
+  items              LineItem[]
+}
+
+model LineItem {
+  id                 String            @id @default(uuid()) @db.Uuid
+  createdAt          DateTime          @default(now())
+  cancellationReason String?
+  cost               Decimal
+  pickupTime         DateTime?
+  productId          String            @db.Uuid
+  purchaseId         String?           @db.Uuid
+  quantity           Int               @default(1)
+  shoppingCartId     String?           @db.Uuid
+  product            Product           @relation(fields: [productId], references: [id])
+  purchase           Purchase?         @relation(fields: [purchaseId], references: [id])
+  cart               ShoppingCart?     @relation(fields: [shoppingCartId], references: [id])
+  submissions        EventSubmission[]
+}
+
+model CostItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  createdAt       DateTime  @default(now())
+  eventId         String    @db.Uuid
+  name            String
+  actualAmount    Decimal?
+  amount          Decimal
+  calculationInfo String
+  completed       Boolean   @default(false)
+  details         String?
+  onInvoice       Boolean
+  notSubsidized   Boolean   @default(false)
+  complete        Boolean   @default(false)
+  event           TumiEvent @relation(fields: [eventId], references: [id])
+  receipts        Receipt[]
+}
+
+model Receipt {
+  id           String        @id @default(uuid()) @db.Uuid
+  createdAt    DateTime      @default(now())
+  userId       String        @db.Uuid
+  costItemId   String        @db.Uuid
+  amount       Decimal
+  blob         String
+  container    String
+  md5          String?
+  preview      String?
+  type         String?
+  confirmed    Boolean       @default(false)
+  costItem     CostItem      @relation(fields: [costItemId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+}
+
+model PhotoShare {
+  id           String    @id @default(uuid()) @db.Uuid
+  createdAt    DateTime  @default(now())
+  eventId      String    @db.Uuid
+  container    String
+  creatorId    String    @db.Uuid
+  originalBlob String
+  previewBlob  String?
+  cols         Int       @default(2)
+  rows         Int       @default(1)
+  type         String
+  creator      User      @relation(fields: [creatorId], references: [id])
+  event        TumiEvent @relation(fields: [eventId], references: [id])
+}
+
+model EventRegistration {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  createdAt             DateTime               @default(now())
+  type                  RegistrationType       @default(PARTICIPANT)
+  userId                String                 @db.Uuid
+  eventId               String                 @db.Uuid
+  checkInTime           DateTime?
+  manualCheckin         Boolean                @default(false)
+  cancellationReason    String?
+  status                RegistrationStatus     @default(SUCCESSFUL)
+  registrationCodeId    String?                @db.Uuid
+  rating                Int?
+  anonymousRating       Boolean                @default(true)
+  userComment           String?
+  event                 TumiEvent              @relation(fields: [eventId], references: [id])
+  eventRegistrationCode EventRegistrationCode? @relation(fields: [registrationCodeId], references: [id])
+  transactions          Transaction[]
+  user                  User                   @relation(fields: [userId], references: [id])
+  submissions           EventSubmission[]
+}
+
+model EventRegistrationCode {
+  id                     String              @id @default(uuid()) @db.Uuid
+  createdAt              DateTime            @default(now())
+  createdById            String              @db.Uuid
+  registrationToRemoveId String?             @unique @db.Uuid
+  registrationCreatedId  String?             @db.Uuid
+  isPublic               Boolean             @default(false)
+  eventId                String              @db.Uuid
+  status                 RegistrationStatus  @default(PENDING)
+  sepaAllowed            Boolean             @default(false)
+  targetEvent            TumiEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  connectedRegistrations EventRegistration[]
+}
+
+model EventSubmissionItem {
+  id             String             @id @default(uuid()) @db.Uuid
+  createdAt      DateTime           @default(now())
+  eventId        String?            @db.Uuid
+  required       Boolean
+  submissionTime SubmissionTime
+  instruction    String
+  name           String
+  type           SubmissionItemType
+  data           Json?
+  productId      String?            @db.Uuid
+  event          TumiEvent?         @relation(fields: [eventId], references: [id])
+  product        Product?           @relation(fields: [productId], references: [id])
+  submissions    EventSubmission[]
+}
+
+model EventSubmission {
+  id                  String              @id @default(uuid()) @db.Uuid
+  createdAt           DateTime            @default(now())
+  submissionItemId    String              @db.Uuid
+  data                Json
+  eventRegistrationId String?             @db.Uuid
+  lineItemId          String?             @db.Uuid
+  registration        EventRegistration?  @relation(fields: [eventRegistrationId], references: [id], onDelete: Cascade)
+  lineItem            LineItem?           @relation(fields: [lineItemId], references: [id])
+  submissionItem      EventSubmissionItem @relation(fields: [submissionItemId], references: [id])
+}
+
+model ActivityLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  createdAt    DateTime    @default(now())
+  message      String
+  data         Json?
+  oldData      Json?
+  involvedUser String?     @db.Uuid
+  severity     LogSeverity
+  category     String      @default("general")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum EnrollmentStatus {
+  LOCAL
+  EXCHANGE
+  INTERNATIONAL
+  NONE
+  OTHER
+}
+
+enum MembershipStatus {
+  NONE
+  TRIAL
+  FULL
+  SPONSOR
+  ALUMNI
+}
+
+enum PublicationState {
+  DRAFT
+  APPROVAL
+  PUBLIC
+  ORGANIZERS
+}
+
+enum SubmissionItemType {
+  FILE
+  NUMBER
+  TEXT
+  DATE
+  RATING
+  LONGTEXT
+  BOOLEAN
+  SELECT
+  CONFIRM
+}
+
+enum SubmissionTime {
+  REGISTRATION
+  BEFORE
+  DURING
+  AFTER
+}
+
+enum RegistrationType {
+  ORGANIZER
+  PARTICIPANT
+  CALENDAR
+}
+
+enum RegistrationStatus {
+  PENDING
+  SUCCESSFUL
+  CANCELLED
+}
+
+enum RegistrationCodeStatus {
+  OPEN
+  PENDING
+  SUCCESSFUL
+  CANCELLED
+}
+
+enum PurchaseStatus {
+  PENDING
+  PAID
+  SENT
+  CANCELLED
+}
+
+enum RegistrationMode {
+  STRIPE
+  ONLINE
+  EXTERNAL
+}
+
+enum LogSeverity {
+  SILLY
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+}
+
+enum TransactionType {
+  CASH
+  STRIPE
+  TRANSFER
+  PAYPAL
+}
+
+enum TransactionDirection {
+  TUMI_TO_EXTERNAL
+  EXTERNAL_TO_TUMI
+  TUMI_TO_USER
+  USER_TO_TUMI
+  USER_TO_EXTERNAL
+  EXTERNAL_TO_USER
+  USER_TO_USER
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
