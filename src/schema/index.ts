@@ -5,7 +5,6 @@ import path from 'path';
 
 import './activityLog';
 import './costItem';
-import './dcc';
 import './enums';
 import './event';
 import './eventOrganizer';
@@ -29,15 +28,16 @@ import './statistics';
 import './stripeUserData';
 import './productImage';
 import './photoShare';
+import {printSubgraphSchema} from "@apollo/subgraph";
 
-export const schema = builder.toSchema({});
+export const schema = builder.toSubGraphSchema({});
 
-const schemaAsString = printSchema(lexicographicSortSchema(schema));
+const schemaAsString = printSubgraphSchema(lexicographicSortSchema(schema));
 
 // we will write this schema to a file.
 if (process.env.NODE_ENV !== 'production') {
   fs.writeFileSync(
-    path.join(process.cwd(), './schema.graphql'),
-    schemaAsString
+      path.join(process.cwd(), './schema.graphql'),
+      schemaAsString
   );
 }

@@ -17,6 +17,8 @@ import {
 import { createSentryWrapper } from '@pothos/tracing-sentry';
 import TracingPlugin, { isRootField } from '@pothos/plugin-tracing';
 import { Request } from 'express';
+import DirectivePlugin from '@pothos/plugin-directives';
+import FederationPlugin from '@pothos/plugin-federation';
 
 const traceResolver = createSentryWrapper({
   includeArgs: true,
@@ -60,7 +62,7 @@ export const builder = new SchemaBuilder<{
     admin: boolean;
   };
 }>({
-  plugins: [ScopeAuthPlugin, PrismaPlugin, SimpleObjectsPlugin, TracingPlugin],
+  plugins: [DirectivePlugin, FederationPlugin,ScopeAuthPlugin, PrismaPlugin, SimpleObjectsPlugin, TracingPlugin],
   authScopes: async (context) => ({
     authenticated: !!context.auth0,
     public: !!context.user,

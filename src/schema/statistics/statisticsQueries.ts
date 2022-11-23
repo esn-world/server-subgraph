@@ -6,8 +6,8 @@ import prisma from '../../client';
 import { RegistrationMode, RegistrationStatus } from '../../generated/prisma';
 import { dateRangeInputType } from '../helperFunctions';
 
-function convertToSeries(growthName, column = 'createdAt') {
-  return (connections) => {
+function convertToSeries(growthName:string, column = 'createdAt') {
+  return (connections:any) => {
     const parts = groupBy(connections, (connection) =>
       DateTime.fromJSDate(connection[column]).toISODate()
     );

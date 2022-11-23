@@ -1,16 +1,21 @@
 {
   "compilerOptions": {
-    "esModuleInterop": true,
+    "rootDirs": ["src"],
     "outDir": "dist",
-    "rootDir": "src",
-    "lib": ["esnext"],
-    "strict": true,
-    "noImplicitAny": false,
-    "paths": {},
-    "types": ["node", "jest"],
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "target": "es2020",
-    "module": "commonjs",
-    "moduleResolution": "node"
+    "module": "node16",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "types": ["node", "jest"],
+    "strict": true,
+    "typeRoots": ["node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "ts-node": {
+    "swc": true
+  }
 }

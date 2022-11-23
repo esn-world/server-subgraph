@@ -1,5 +1,5 @@
 import { builder } from '../../builder';
-import { GraphQLYogaError } from '@graphql-yoga/node';
+import { GraphQLError } from 'graphql';
 import { RegistrationMode } from '../../generated/prisma';
 import { RegistrationService } from '../../helpers/registrationService';
 import prisma from '../../client';
@@ -17,7 +17,7 @@ builder.mutationFields((t) => ({
         include: { targetEvent: true },
       });
       if (!registrationCode) {
-        throw new GraphQLYogaError(
+        throw new GraphQLError(
           'Registration code could not be found for: ' + id
         );
       }
@@ -27,7 +27,7 @@ builder.mutationFields((t) => ({
       ) {
         const priceAllowed = !!price;
         if (!priceAllowed) {
-          throw new GraphQLYogaError(
+          throw new GraphQLError(
             'Price received is not valid in this context'
           );
         }

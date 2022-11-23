@@ -1,11 +1,9 @@
 import jwt from 'jsonwebtoken';
-import fetch from 'node-fetch-native';
 
 export class Auth0 {
   private token: string | undefined;
 
   public async getProfile(auth_header: string) {
-    console.log(auth_header);
     const response = await fetch(`https://tumi.eu.auth0.com/userinfo`, {
       headers: {
         Authorization: `${auth_header}`,

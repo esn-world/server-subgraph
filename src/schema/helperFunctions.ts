@@ -1,6 +1,6 @@
 import { builder } from '../builder';
 
-export function removeEmpty(obj) {
+export function removeEmpty(obj: any) {
   return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null));
 }
 
@@ -11,7 +11,7 @@ export const dateRangeInputType = builder.inputType('DateRangeInput', {
   }),
 });
 
-export const prepareSearchString = (search) => {
+export const prepareSearchString = (search: string) => {
   if (search) {
     let res = search.replace(new RegExp(/(?<=[a-z]) (?=[a-z])/gi), '+');
     if (!res.includes(' ')) {
