@@ -15,10 +15,14 @@ RUN yarn install --frozen-lockfile --production
 
 
 FROM node:19.1.0-bullseye-slim
-WORKDIR /usr/src/app
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init
 ENV NODE_ENV production
 
-COPY --from=build /usr/src/app/dist/ ./dist
-COPY --from=dependencies /usr/src/app/node_modules ./node_modules
+USER node
+WORKDIR /usr/src/app
+
+COPY --chown=node:node --from=build /usr/src/app/dist/ ./dist
+COPY --chown=node:node --from=dependencies /usr/src/app/node_modules ./node_modules
+
 EXPOSE 4000
-CMD ["dist/server"]
+CMD ["dumb-init", "node", "dist/server"]
