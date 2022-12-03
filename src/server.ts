@@ -85,8 +85,7 @@ async function startServer() {
                         extensions: {error: e},
                     });
                 }
-                console.log(req.auth);
-                if (req.auth?.payload) {
+                if (req.auth) {
                     let user = await prisma.user.findUnique({
                         where: {
                             authId: req.auth.sub,

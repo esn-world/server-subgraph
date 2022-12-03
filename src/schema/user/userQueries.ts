@@ -123,7 +123,6 @@ builder.queryFields((t) => ({
     type: 'User',
     nullable: true,
     resolve: async (query, root, args, ctx, info) => {
-      console.log(ctx.user);
       const id = ctx.user?.id;
       if (!id) {
         if (!ctx.token?.sub) {
